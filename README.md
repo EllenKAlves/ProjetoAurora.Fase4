@@ -1,5 +1,5 @@
 # ProjetoAurora.Fase4
-> Ellen Kauane Rodrigues Alves - RM570885 | Pietra Fanticelli - RM573229 | Renan Mano Otero - RM554911 | Sarah Iraci Bessa de Moura - RM573889 | 
+> Ellen Kauane Rodrigues Alves - RM570885 | Kaua Arthur - RM573734 | Pietra Fanticelli - RM573229 | Renan Mano Otero - RM554911 | Sarah Iraci Bessa de Moura - RM573889 | 
 
 ## Sistema de Monitoramento Operacional
 

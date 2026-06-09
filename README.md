@@ -79,6 +79,7 @@ Para rodar o monitoramento e compilar os novos logs, execute o comando abaixo a 
 ```python
 src/sistema.py
 ```
+ Instale também a extensão vscode.pdf para conseguir ler o arquivo `relatorio.pdf` em `docs/relatorio.pdf`
 ## 📺 Link do Vídeo demonstrativo
 
 A apresentação completa do projeto, explicando a arquitetura lógica e a execução do pipeline de dados, pode ser assistida diretamente no YouTube através do link abaixo:

@@ -19,6 +19,20 @@ O projeto analisa dados ambientais e energéticos coletados via sensores, identi
 
 ---
 
+## ⚙️ Regras Lógicas Principais do Diagnóstico
+
+O algoritmo analisa as variáveis de ambiente utilizando lógica proposicional baseada em limites de segurança estritos:
+* **Alerta Crítico (Suporte à Vida):** Disparado se a oxigenação/suporte de vida cair abaixo de $85.0\%$ **OU** se o banco de baterias estiver abaixo de $30.0\%$ concomitante à ausência de geração solar ativa ($Geração = 0$).
+* **Alerta de Comunicação:** Disparado se o status binário do link de comunicação for igual a $0$ (Offline).
+
+---
+
+## 📈 Técnica de Previsão Utilizada e Resultado
+O sistema utiliza uma **Média Móvel dos últimos 3 períodos integrada com o cálculo da Taxa de Crescimento Linear** ($Consumo_{t} - Consumo_{t-1}$). 
+* **Resultado:** O algoritmo projeta matematicamente o próximo estado de consumo elétrico ($kWh$). Caso a curva de consumo calculada ultrapasse a geração disponível enquanto as baterias estiverem abaixo de $60\%$, o sistema emite um gatilho automático de contingência.
+
+---
+
 ## 📂 Estrutura de Arquivos Necessária
 
 Para o correto funcionamento do script, certifique-se de ter um diretório chamado `data/` no mesmo nível do seu arquivo de código, contendo o arquivo de telemetria:
@@ -32,6 +46,10 @@ Para o correto funcionamento do script, certifique-se de ter um diretório chama
 |   └── link_video.txt    # Arquivo com link do video no YouTube 
 └── main.py               # Código-fonte principal do sistema
 ```
+## 📊 Estruturas de Dados Utilizadas e Justificativa
+1.  **Filas (FIFO - First-In, First-Out):** Utilizadas no pipeline de processamento e exibição de alertas ativos no painel principal. Justifica-se pela necessidade de garantir que os alertas sejam atendidos na exata ordem cronológica em que foram gerados pela base.
+2.  **Pilhas (LIFO - Last-In, First-Out):** Utilizadas para a persistência e gravação de eventos de erro. Justifica-se para que o desempilhamento grave os logs gerando um histórico de auditoria reverso, priorizando o evento crítico mais recente no topo do arquivo `Eventos.txt`.
+
 
 ## 🧠 Arquitetura de Funcionalidades
 
@@ -53,3 +71,16 @@ saída:
 ---
 <img width="506" height="609" alt="image" src="https://github.com/user-attachments/assets/8197c06c-bcb9-499a-8bad-de01485a6395" />
 
+--- 
+
+## 🚀 Como Executar o Sistema
+Para rodar o monitoramento e compilar os novos logs, execute o comando abaixo a partir da raiz do projeto:
+
+```python
+src/sistema.py
+```
+## 📺 Link do Vídeo demonstrativo
+
+A apresentação completa do projeto, explicando a arquitetura lógica e a execução do pipeline de dados, pode ser assistida diretamente no YouTube através do link abaixo:
+
+👉 Assista à demonstração do Projeto Aurora no YouTube [link]

@@ -16,7 +16,7 @@ def ler_historico_eventos():
         print("ℹ️ Nenhum histórico encontrado. O arquivo 'Eventos.txt' será criado nesta execução.")
     print("-" * 60)
 
-#  FUNÇÃO PARA LER OS DADOS ATUAIS DA MISSÃO (data/Dados.csv)
+#  FUNÇÃO PARA LER OS DADOS DA MISSÃO (data/Dados.csv)
 def carregar_dados_do_csv():
     dados_missao = {}
     historico_consumo = []
@@ -25,7 +25,7 @@ def carregar_dados_do_csv():
     try:
         with open('data/Dados.csv', mode='r', encoding='utf-8') as arquivo:
             leitor_csv = csv.reader(arquivo)
-            next(leitor_csv) # Pula a linha de cabeçalho
+            next(leitor_csv) 
             
             linhas = list(leitor_csv)
             if not linhas:
@@ -34,22 +34,30 @@ def carregar_dados_do_csv():
                 
             ultima_leitura = linhas[-1]
             
+            # Leitura de todos os dados
             dados_missao = {
                 "energia": {
-                    "solar": {"status": 1, "valor_atual": float(ultima_leitura[1])},
-                    "eolica": {"status": 1, "valor_atual": float(ultima_leitura[2])},
-                    "baterias": {"status": 1, "valor_atual": float(ultima_leitura[3])}
+                    "status_geral": {"status": int(ultima_leitura[2]), "valor_atual": float(ultima_leitura[2])},
+                    "geracao_kwh": {"status": int(ultima_leitura[2]), "valor_atual": float(ultima_leitura[7])},
+                    "consumo_kwh": {"status": int(ultima_leitura[2]), "valor_atual": float(ultima_leitura[8])},
+                    "baterias_reserva": {"status": int(ultima_leitura[2]), "valor_atual": float(ultima_leitura[9])}
                 },
                 "habitat": {
-                    "oxigenio": {"status": 1, "valor_atual": float(ultima_leitura[4])},
-                    "temperatura": {"status": 1, "valor_atual": float(ultima_leitura[5])},
-                    "comunicacao": {"status": int(ultima_leitura[6]), "valor_atual": float(ultima_leitura[6])}
+                    "oxigenio_suporte": {"status": int(ultima_leitura[1]), "valor_atual": 100.0 if ultima_leitura[1] == '1' else 0.0},
+                    "status_habitat": {"status": int(ultima_leitura[4]), "valor_atual": float(ultima_leitura[4])},
+                    "temp_interna": {"status": int(ultima_leitura[4]), "valor_atual": float(ultima_leitura[10])},
+                    "radiacao": {"status": 1, "valor_atual": float(ultima_leitura[11])},
+                    "comunicacao": {"status": int(ultima_leitura[3]), "valor_atual": float(ultima_leitura[12])}
+                },
+                "pesquisa_logistica": {
+                    "laboratorio": {"status": int(ultima_leitura[5]), "valor_atual": float(ultima_leitura[5])},
+                    "armazenamento": {"status": int(ultima_leitura[6]), "valor_atual": float(ultima_leitura[6])}
                 }
             }
             
             for linha in linhas:
-                matriz_leituras.append([linha[0], float(linha[1]), float(linha[2]), float(linha[4])])
-                historico_consumo.append(float(linha[7]))
+                matriz_leituras.append([linha[0], float(linha[1]), float(linha[2]), float(linha[7])])
+                historico_consumo.append(float(linha[8]))
                 
         return dados_missao, historico_consumo, matriz_leituras
 
@@ -62,10 +70,10 @@ def processar_alertas(dados_missao):
     fila_alertas = []  
     pilha_eventos = [] 
     
-    bateria = dados_missao["energia"]["baterias"]["valor_atual"]
-    oxigenio = dados_missao["habitat"]["oxigenio"]["valor_atual"]
+    bateria = dados_missao["energia"]["baterias_reserva"]["valor_atual"]
+    oxigenio = dados_missao["habitat"]["oxigenio_suporte"]["valor_atual"]
     comunicacao_ok = bool(dados_missao["habitat"]["comunicacao"]["status"])
-    solar_ok = bool(dados_missao["energia"]["solar"]["status"])
+    solar_ok = bool(dados_missao["energia"]["status_geral"]["status"])
     
     if (oxigenio < 85.0) or (bateria < 30.0 and not solar_ok):
         alerta = {"nivel": "CRÍTICO", "modulo": "Suporte à Vida", "motivo": "Risco de asfixia ou blecaute iminente."}
@@ -81,7 +89,6 @@ def processar_alertas(dados_missao):
 
 #  GRAVAÇÃO DE NOVOS LOGS (data/Eventos.txt)
 def registrar_eventos_txt(pilha_eventos):
-    """Desempilha os novos eventos e os adiciona ao arquivo histórico"""
     try:
         with open('data/Eventos.txt', mode='a', encoding='utf-8') as arquivo_txt:
             arquivo_txt.write("--- NOVA ANÁLISE DE EVENTOS COMPILADA ---\n")
@@ -107,10 +114,8 @@ def prever_tendencia(historico_consumo):
 
 #  EXECUÇÃO PRINCIPAL
 def executar_sistema():
-    # NOVIDADE: Lê e mostra o passado antes de analisar o presente
     ler_historico_eventos()
 
-    # Carregamento do arquivo atual
     dados_missao, historico_consumo, matriz_leituras = carregar_dados_do_csv()
     if not dados_missao:
         return
@@ -118,8 +123,8 @@ def executar_sistema():
     fila_alertas, pilha_eventos = processar_alertas(dados_missao)
     proximo_consumo = prever_tendencia(historico_consumo)
     
-    geracao_total = dados_missao["energia"]["solar"]["valor_atual"] + dados_missao["energia"]["eolica"]["valor_atual"]
-    bateria_atual = dados_missao["energia"]["baterias"]["valor_atual"]
+    geracao_total = dados_missao["energia"]["geracao_kwh"]["valor_atual"]
+    bateria_atual = dados_missao["energia"]["baterias_reserva"]["valor_atual"]
     
     # Exibição do Painel
     print("="*60)
@@ -127,12 +132,12 @@ def executar_sistema():
     print("="*60)
     
     print("\n[📋 TABELA DE STATUS DOS MÓDULOS]")
-    print(f"{'Módulo':<20} | {'Status Operacional':<18} | {'Leitura Atual'}")
-    print("-" * 60)
+    print(f"{'Módulo':<32} | {'Status Operacional':<18} | {'Leitura Atual'}")
+    print("-" * 70)
     for sistema, sub in dados_missao.items():
         for sub_nome, info in sub.items():
             status_text = "🟢 OPERACIONAL" if info["status"] == 1 else "🔴 FALHA CRÍTICA"
-            print(f"{sistema.upper()} ({sub_nome}) : {status_text:<18} | {info['valor_atual']}")
+            print(f"{sistema.upper()} ({sub_nome:<18}) : {status_text:<18} | {info['valor_atual']}")
             
     print("\n[🚨 ALERTAS ATIVOS (Fila de Atendimento)]")
     if not fila_alertas:
@@ -149,7 +154,6 @@ def executar_sistema():
 
     print("\n" + "="*60)
     
-    # Salva os novos dados gerados nesta rodada
     registrar_eventos_txt(pilha_eventos)
 
 if __name__ == "__main__":

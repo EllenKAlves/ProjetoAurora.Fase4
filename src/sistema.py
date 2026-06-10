@@ -1,160 +1,398 @@
 import csv
 
-#  FUNÇÃO PARA LER O HISTÓRICO DE LOGS ANTERIORES (data/Eventos.txt)
-def ler_historico_eventos():
-    """Lê e exibe no terminal os eventos que já foram gravados anteriormente"""
-    print("\n[📜 HISTÓRICO DE EVENTOS ANTERIORES (data/Eventos.txt)]")
-    print("-" * 60)
-    try:
-        with open('data/Eventos.txt', mode='r', encoding='utf-8') as arquivo_txt:
-            conteudo = arquivo_txt.read()
-            if not conteudo.strip():
-                print("O arquivo de logs está vazio.")
-            else:
-                print(conteudo.strip())
-    except FileNotFoundError:
-        print("ℹ️ Nenhum histórico encontrado. O arquivo 'Eventos.txt' será criado nesta execução.")
-    print("-" * 60)
 
-#  FUNÇÃO PARA LER OS DADOS DA MISSÃO (data/Dados.csv)
+CAMINHO_DADOS = "data/Dados.csv"
+CAMINHO_EVENTOS = "data/Eventos.txt"
+
+PRIORIDADE = {"NORMAL": 0, "ALERTA": 1, "CRITICO": 2}
+
+MODULOS = {
+    "suporte_vida": "Suporte a vida",
+    "energia": "Energia",
+    "comunicacao": "Comunicacao",
+    "habitat": "Habitat",
+    "laboratorio": "Laboratorio",
+    "armazenamento": "Armazenamento",
+}
+
+
+def ler_historico_eventos():
+    """Le o log simulado sem alterar seu conteudo."""
+    print("\n[HISTORICO DE EVENTOS SIMULADOS]")
+    print("-" * 74)
+    try:
+        with open(CAMINHO_EVENTOS, mode="r", encoding="utf-8") as arquivo:
+            eventos = [linha.strip() for linha in arquivo if linha.strip()]
+            for evento in eventos:
+                print(evento)
+            return eventos
+    except FileNotFoundError:
+        print(f"Arquivo nao encontrado: {CAMINHO_EVENTOS}")
+        return []
+
+
 def carregar_dados_do_csv():
-    dados_missao = {}
-    historico_consumo = []
+    """Carrega a telemetria em uma lista de dicionarios e em uma matriz."""
+    leituras = []
     matriz_leituras = []
 
     try:
-        with open('data/Dados.csv', mode='r', encoding='utf-8') as arquivo:
-            leitor_csv = csv.reader(arquivo)
-            next(leitor_csv) 
-            
-            linhas = list(leitor_csv)
-            if not linhas:
-                print("⚠️ Arquivo 'Dados.csv' está vazio.")
-                return None, [], []
-                
-            ultima_leitura = linhas[-1]
-            
-            # Leitura de todos os dados
-            dados_missao = {
-                "energia": {
-                    "status_geral": {"status": int(ultima_leitura[2]), "valor_atual": float(ultima_leitura[2])},
-                    "geracao_kwh": {"status": int(ultima_leitura[2]), "valor_atual": float(ultima_leitura[7])},
-                    "consumo_kwh": {"status": int(ultima_leitura[2]), "valor_atual": float(ultima_leitura[8])},
-                    "baterias_reserva": {"status": int(ultima_leitura[2]), "valor_atual": float(ultima_leitura[9])}
-                },
-                "habitat": {
-                    "oxigenio_suporte": {"status": int(ultima_leitura[1]), "valor_atual": 100.0 if ultima_leitura[1] == '1' else 0.0},
-                    "status_habitat": {"status": int(ultima_leitura[4]), "valor_atual": float(ultima_leitura[4])},
-                    "temp_interna": {"status": int(ultima_leitura[4]), "valor_atual": float(ultima_leitura[10])},
-                    "radiacao": {"status": 1, "valor_atual": float(ultima_leitura[11])},
-                    "comunicacao": {"status": int(ultima_leitura[3]), "valor_atual": float(ultima_leitura[12])}
-                },
-                "pesquisa_logistica": {
-                    "laboratorio": {"status": int(ultima_leitura[5]), "valor_atual": float(ultima_leitura[5])},
-                    "armazenamento": {"status": int(ultima_leitura[6]), "valor_atual": float(ultima_leitura[6])}
-                }
-            }
-            
-            for linha in linhas:
-                matriz_leituras.append([linha[0], float(linha[1]), float(linha[2]), float(linha[7])])
-                historico_consumo.append(float(linha[8]))
-                
-        return dados_missao, historico_consumo, matriz_leituras
+        with open(CAMINHO_DADOS, mode="r", encoding="utf-8", newline="") as arquivo:
+            leitor = csv.DictReader(arquivo)
 
+            for linha in leitor:
+                leitura = {"horario": linha["horario"]}
+
+                for modulo in MODULOS:
+                    leitura[modulo] = int(linha[modulo])
+
+                for variavel in (
+                    "geracao_kwh",
+                    "consumo_kwh",
+                    "reserva_energia",
+                    "temp_interna",
+                    "radiacao",
+                    "qualidade_comunicacao",
+                ):
+                    leitura[variavel] = float(linha[variavel])
+
+                leituras.append(leitura)
+                matriz_leituras.append(
+                    [
+                        leitura["horario"],
+                        leitura["geracao_kwh"],
+                        leitura["consumo_kwh"],
+                        leitura["reserva_energia"],
+                        leitura["temp_interna"],
+                        leitura["radiacao"],
+                        leitura["qualidade_comunicacao"],
+                    ]
+                )
+
+        return leituras, matriz_leituras
     except FileNotFoundError:
-        print("❌ Erro: O arquivo 'data/Dados.csv' não foi encontrado.")
-        return None, [], []
+        print(f"Erro: o arquivo {CAMINHO_DADOS} nao foi encontrado.")
+        return [], []
 
-#  SISTEMA DE DECISÃO LOGICA (Filas e Pilhas)
-def processar_alertas(dados_missao):
-    fila_alertas = []  
-    pilha_eventos = [] 
-    
-    bateria = dados_missao["energia"]["baterias_reserva"]["valor_atual"]
-    oxigenio = dados_missao["habitat"]["oxigenio_suporte"]["valor_atual"]
-    comunicacao_ok = bool(dados_missao["habitat"]["comunicacao"]["status"])
-    solar_ok = bool(dados_missao["energia"]["status_geral"]["status"])
-    
-    if (oxigenio < 85.0) or (bateria < 30.0 and not solar_ok):
-        alerta = {"nivel": "CRÍTICO", "modulo": "Suporte à Vida", "motivo": "Risco de asfixia ou blecaute iminente."}
-        fila_alertas.append(alerta)
-        pilha_eventos.append(alerta)
-        
-    if not comunicacao_ok:
-        alerta = {"nivel": "ALERTA", "modulo": "Comunicação", "motivo": "Sinal com a Terra interrompido."}
-        fila_alertas.append(alerta)
-        pilha_eventos.append(alerta)
-        
-    return fila_alertas, pilha_eventos
 
-#  GRAVAÇÃO DE NOVOS LOGS (data/Eventos.txt)
-def registrar_eventos_txt(pilha_eventos):
-    try:
-        with open('data/Eventos.txt', mode='a', encoding='utf-8') as arquivo_txt:
-            arquivo_txt.write("--- NOVA ANÁLISE DE EVENTOS COMPILADA ---\n")
-            if not pilha_eventos:
-                arquivo_txt.write("Status: Todos os módulos operando em conformidade nominal.\n")
-            else:
-                while pilha_eventos:
-                    evento = pilha_eventos.pop()
-                    arquivo_txt.write(f"[{evento['nivel']}] Módulo: {evento['modulo']} | Motivo: {evento['motivo']}\n")
-            arquivo_txt.write("\n")
-        print("💾 Novos eventos salvos com sucesso em 'data/Eventos.txt'!")
-    except Exception as e:
-        print(f"❌ Falha ao gravar arquivo de logs: {e}")
+def organizar_hierarquia(leitura):
+    """Organiza a ultima leitura em uma hierarquia de dicionarios."""
+    return {
+        "energia": {
+            "modulo_ativo": leitura["energia"],
+            "geracao_kwh": leitura["geracao_kwh"],
+            "consumo_kwh": leitura["consumo_kwh"],
+            "reserva_percentual": leitura["reserva_energia"],
+        },
+        "habitat": {
+            "modulo_ativo": leitura["habitat"],
+            "suporte_vida_ativo": leitura["suporte_vida"],
+            "temperatura_c": leitura["temp_interna"],
+            "radiacao": leitura["radiacao"],
+            "comunicacao": {
+                "modulo_ativo": leitura["comunicacao"],
+                "qualidade_percentual": leitura["qualidade_comunicacao"],
+            },
+        },
+        "pesquisa_logistica": {
+            "laboratorio_ativo": leitura["laboratorio"],
+            "armazenamento_ativo": leitura["armazenamento"],
+        },
+    }
 
-#  TÉCNICA SIMPLES DE PREVISÃO
-def prever_tendencia(historico_consumo):
-    if len(historico_consumo) < 2:
-        return 0.0
-    ultimos_dados = historico_consumo[-3:]
-    media_movel = sum(ultimos_dados) / len(ultimos_dados)
-    taxa_crescimento = historico_consumo[-1] - historico_consumo[-2]
-    return media_movel + taxa_crescimento
 
-#  EXECUÇÃO PRINCIPAL
+def criar_alerta(horario, nivel, modulo, motivo, recomendacao):
+    """Cria um alerta padronizado para a fila e para a pilha."""
+    return {
+        "horario": horario,
+        "nivel": nivel,
+        "modulo": modulo,
+        "motivo": motivo,
+        "recomendacao": recomendacao,
+    }
+
+
+def analisar_leitura(leitura):
+    """Aplica regras logicas a uma leitura de telemetria."""
+    alertas = []
+    horario = leitura["horario"]
+
+    # Regra 1: falhas binarias dos modulos essenciais e nao essenciais.
+    if not leitura["suporte_vida"] or not leitura["habitat"]:
+        alertas.append(
+            criar_alerta(
+                horario,
+                "CRITICO",
+                "Suporte a vida",
+                "Suporte a vida ou habitat indisponivel.",
+                "Priorizar suporte a vida e iniciar protocolo de emergencia.",
+            )
+        )
+    elif not leitura["energia"]:
+        alertas.append(
+            criar_alerta(
+                horario,
+                "CRITICO",
+                "Energia",
+                "Modulo principal de energia indisponivel.",
+                "Ativar fontes de reserva e desligar sistemas nao essenciais.",
+            )
+        )
+    elif not leitura["laboratorio"] or not leitura["armazenamento"]:
+        alertas.append(
+            criar_alerta(
+                horario,
+                "ALERTA",
+                "Pesquisa e logistica",
+                "Laboratorio ou armazenamento indisponivel.",
+                "Verificar o modulo afetado sem interromper sistemas essenciais.",
+            )
+        )
+
+    # Regra 2: equilibrio entre geracao, consumo e reserva.
+    if leitura["reserva_energia"] < 30 or (
+        leitura["consumo_kwh"] > leitura["geracao_kwh"]
+        and leitura["reserva_energia"] < 60
+    ):
+        alertas.append(
+            criar_alerta(
+                horario,
+                "CRITICO",
+                "Energia",
+                "Reserva critica ou deficit energetico com pouca reserva.",
+                "Ativar modo de economia e priorizar sistemas essenciais.",
+            )
+        )
+    elif leitura["consumo_kwh"] > leitura["geracao_kwh"]:
+        alertas.append(
+            criar_alerta(
+                horario,
+                "ALERTA",
+                "Energia",
+                "Consumo maior que a geracao disponivel.",
+                "Reduzir cargas nao essenciais e acompanhar a reserva.",
+            )
+        )
+
+    # Regra 3: comunicacao considera o estado binario e a qualidade do sinal.
+    if not leitura["comunicacao"] or leitura["qualidade_comunicacao"] < 50:
+        alertas.append(
+            criar_alerta(
+                horario,
+                "CRITICO",
+                "Comunicacao",
+                "Comunicacao offline ou qualidade abaixo de 50%.",
+                "Reiniciar o modulo e ativar o canal de emergencia.",
+            )
+        )
+    elif leitura["qualidade_comunicacao"] < 75:
+        alertas.append(
+            criar_alerta(
+                horario,
+                "ALERTA",
+                "Comunicacao",
+                "Qualidade da comunicacao abaixo de 75%.",
+                "Reposicionar a antena e monitorar a estabilidade do sinal.",
+            )
+        )
+
+    # Regra 4: faixas de seguranca ambientais.
+    if (
+        leitura["radiacao"] >= 7
+        or leitura["temp_interna"] < 16
+        or leitura["temp_interna"] > 30
+    ):
+        alertas.append(
+            criar_alerta(
+                horario,
+                "CRITICO",
+                "Ambiente",
+                "Radiacao critica ou temperatura fora da faixa segura.",
+                "Recolher a equipe ao habitat protegido e verificar o controle termico.",
+            )
+        )
+    elif (
+        leitura["radiacao"] >= 5
+        or leitura["temp_interna"] < 18
+        or leitura["temp_interna"] > 27
+    ):
+        alertas.append(
+            criar_alerta(
+                horario,
+                "ALERTA",
+                "Ambiente",
+                "Variavel ambiental proxima do limite de seguranca.",
+                "Intensificar o monitoramento ambiental.",
+            )
+        )
+
+    # Regra 5: inconsistencia proposital dos dados.
+    modulos_ativos = all(leitura[modulo] == 1 for modulo in MODULOS)
+    if (
+        modulos_ativos
+        and leitura["geracao_kwh"] == 0
+        and leitura["consumo_kwh"] == 0
+    ):
+        alertas.append(
+            criar_alerta(
+                horario,
+                "CRITICO",
+                "Diagnostico de dados",
+                "Todos os modulos estao ativos, mas geracao e consumo sao zero.",
+                "Validar os sensores de energia antes de tomar decisoes operacionais.",
+            )
+        )
+
+    return alertas
+
+
+def prever_reserva(leituras):
+    """Preve a reserva do proximo ciclo pela media das 3 ultimas variacoes."""
+    reservas = [leitura["reserva_energia"] for leitura in leituras]
+
+    if len(reservas) < 4:
+        return None
+
+    variacoes = []
+    for indice in range(1, len(reservas)):
+        variacoes.append(reservas[indice] - reservas[indice - 1])
+
+    ultimas_variacoes = variacoes[-3:]
+    media_variacoes = sum(ultimas_variacoes) / len(ultimas_variacoes)
+    reserva_prevista = reservas[-1] + media_variacoes
+    reserva_prevista = max(0.0, min(100.0, reserva_prevista))
+
+    if reserva_prevista < 30:
+        nivel = "CRITICO"
+        recomendacao = "Ativar imediatamente o modo de economia de energia."
+    elif reserva_prevista < 60:
+        nivel = "ALERTA"
+        recomendacao = "Reduzir cargas nao essenciais no proximo ciclo."
+    else:
+        nivel = "NORMAL"
+        recomendacao = "Manter o acompanhamento da reserva energetica."
+
+    return {
+        "reservas": reservas,
+        "ultimas_variacoes": ultimas_variacoes,
+        "media_variacoes": media_variacoes,
+        "reserva_prevista": reserva_prevista,
+        "nivel": nivel,
+        "recomendacao": recomendacao,
+    }
+
+
+def classificar_horario(alertas):
+    """Classifica um horario como NORMAL, ALERTA ou CRITICO."""
+    if any(alerta["nivel"] == "CRITICO" for alerta in alertas):
+        return "CRITICO"
+    elif any(alerta["nivel"] == "ALERTA" for alerta in alertas):
+        return "ALERTA"
+    else:
+        return "NORMAL"
+
+
+def processar_alertas(leituras):
+    """Percorre todos os horarios e monta fila priorizada e pilha critica."""
+    fila_alertas = []
+    pilha_eventos_criticos = []
+    diagnosticos = []
+
+    for leitura in leituras:
+        alertas_horario = analisar_leitura(leitura)
+        diagnosticos.append(
+            {
+                "horario": leitura["horario"],
+                "status": classificar_horario(alertas_horario),
+                "quantidade_alertas": len(alertas_horario),
+            }
+        )
+
+        for alerta in alertas_horario:
+            fila_alertas.append(alerta)
+            if alerta["nivel"] == "CRITICO":
+                pilha_eventos_criticos.append(alerta)
+
+    # A lista funciona como fila de prioridade: criticos aparecem primeiro.
+    fila_alertas.sort(key=lambda alerta: PRIORIDADE[alerta["nivel"]], reverse=True)
+    return fila_alertas, pilha_eventos_criticos, diagnosticos
+
+
+def exibir_status_modulos(ultima_leitura):
+    print("\n[STATUS BINARIO DOS MODULOS NO ULTIMO HORARIO]")
+    print(f"{'Modulo':<24} | {'Valor':<5} | Status")
+    print("-" * 52)
+
+    for chave, nome in MODULOS.items():
+        valor = ultima_leitura[chave]
+        status = "NORMAL" if valor == 1 else "CRITICO"
+        print(f"{nome:<24} | {valor:<5} | {status}")
+
+
+def exibir_resultados(leituras, matriz_leituras):
+    fila_alertas, pilha_eventos_criticos, diagnosticos = processar_alertas(leituras)
+    previsao = prever_reserva(leituras)
+    hierarquia = organizar_hierarquia(leituras[-1])
+
+    print("\n" + "=" * 74)
+    print("SISTEMA DE MONITORAMENTO OPERACIONAL - PROJETO AURORA")
+    print("=" * 74)
+
+    print("\n[STATUS DA MISSAO POR HORARIO]")
+    print(f"{'Horario':<10} | {'Status':<8} | Alertas detectados")
+    print("-" * 48)
+    for diagnostico in diagnosticos:
+        print(
+            f"{diagnostico['horario']:<10} | "
+            f"{diagnostico['status']:<8} | "
+            f"{diagnostico['quantidade_alertas']}"
+        )
+
+    exibir_status_modulos(leituras[-1])
+
+    print("\n[ALERTAS PRIORIZADOS - FILA]")
+    for alerta in fila_alertas:
+        print(
+            f"[{alerta['nivel']}] {alerta['horario']} | "
+            f"{alerta['modulo']}: {alerta['motivo']}"
+        )
+
+    print("\n[ULTIMOS EVENTOS CRITICOS - PILHA]")
+    for alerta in reversed(pilha_eventos_criticos):
+        print(f"{alerta['horario']} | {alerta['modulo']}: {alerta['motivo']}")
+
+    print("\n[PREVISAO DA RESERVA ENERGETICA]")
+    print(f"Reservas utilizadas: {previsao['reservas']}")
+    print(f"Ultimas variacoes: {previsao['ultimas_variacoes']}")
+    print(f"Media das variacoes: {previsao['media_variacoes']:.2f} pontos percentuais")
+    print(f"Reserva prevista para o proximo ciclo: {previsao['reserva_prevista']:.2f}%")
+    print(f"Classificacao da previsao: {previsao['nivel']}")
+
+    print("\n[RECOMENDACOES TECNICAS AUTOMATICAS]")
+    recomendacoes = []
+    for alerta in fila_alertas:
+        if alerta["recomendacao"] not in recomendacoes:
+            recomendacoes.append(alerta["recomendacao"])
+    if previsao["recomendacao"] not in recomendacoes:
+        recomendacoes.append(previsao["recomendacao"])
+    for indice, recomendacao in enumerate(recomendacoes, start=1):
+        print(f"{indice}. {recomendacao}")
+
+    print("\n[ESTRUTURAS ORGANIZADAS]")
+    print(f"Matriz de leituras: {len(matriz_leituras)} linhas x {len(matriz_leituras[0])} colunas")
+    print(f"Grupos da hierarquia: {list(hierarquia.keys())}")
+    print("=" * 74)
+
+
 def executar_sistema():
     ler_historico_eventos()
+    leituras, matriz_leituras = carregar_dados_do_csv()
 
-    dados_missao, historico_consumo, matriz_leituras = carregar_dados_do_csv()
-    if not dados_missao:
+    if not leituras:
         return
-        
-    fila_alertas, pilha_eventos = processar_alertas(dados_missao)
-    proximo_consumo = prever_tendencia(historico_consumo)
-    
-    geracao_total = dados_missao["energia"]["geracao_kwh"]["valor_atual"]
-    bateria_atual = dados_missao["energia"]["baterias_reserva"]["valor_atual"]
-    
-    # Exibição do Painel
-    print("="*60)
-    print("         SISTEMA DE MONITORAMENTO OPERACIONAL - MARS v2        ")
-    print("="*60)
-    
-    print("\n[📋 TABELA DE STATUS DOS MÓDULOS]")
-    print(f"{'Módulo':<32} | {'Status Operacional':<18} | {'Leitura Atual'}")
-    print("-" * 70)
-    for sistema, sub in dados_missao.items():
-        for sub_nome, info in sub.items():
-            status_text = "🟢 OPERACIONAL" if info["status"] == 1 else "🔴 FALHA CRÍTICA"
-            print(f"{sistema.upper()} ({sub_nome:<18}) : {status_text:<18} | {info['valor_atual']}")
-            
-    print("\n[🚨 ALERTAS ATIVOS (Fila de Atendimento)]")
-    if not fila_alertas:
-        print("🟢 Sistema seguro. Sem alertas pendentes.")
-    else:
-        for alt in fila_alertas:
-            print(f"[{alt['nivel']}] {alt['modulo']}: {alt['motivo']}")
 
-    print("\n[🔧 RECOMENDAÇÕES TÉCNICAS AUTOMARES]")
-    if proximo_consumo > geracao_total and bateria_atual < 60.0:
-        print("⚠️ [RECOMENDAÇÃO] Previsão de consumo excede a geração renovável.")
-    if dados_missao["habitat"]["comunicacao"]["status"] == 0:
-        print("🛠️ [RECOMENDAÇÃO] Módulo de Comunicação Offline.")
+    exibir_resultados(leituras, matriz_leituras)
 
-    print("\n" + "="*60)
-    
-    registrar_eventos_txt(pilha_eventos)
 
 if __name__ == "__main__":
     executar_sistema()

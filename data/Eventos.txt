@@ -1,28 +1,14 @@
 00:15 - Sistema iniciado com sucesso
-01:40 - Verificação automática concluída
-03:20 - Pico de consumo energético detectado
-05:10 - Reinicialização do sensor de radiação
-07:30 - Modo econômico ativado
-11:45 - Alerta: aumento gradual de radiação
-15:20 - Falha temporária na comunicação
-18:05 - Comunicação restabelecida
-19:50 - Alerta crítico de perda de sinal
-20:00 - Comunicação principal indisponível
-20:05 - Radiação acima do limite operacional
-20:10 - Consumo energético excede geração disponível
-21:10 - Sistema de comunicação reiniciado
-23:00 - Inconsistência: módulos ativos com consumo zerado--- NOVA ANÁLISE DE EVENTOS COMPILADA ---
-[CRÍTICO] Módulo: Suporte à Vida | Motivo: Risco de asfixia ou blecaute iminente.
-
---- NOVA ANÁLISE DE EVENTOS COMPILADA ---
-[CRÍTICO] Módulo: Suporte à Vida | Motivo: Risco de asfixia ou blecaute iminente.
-
---- NOVA ANÁLISE DE EVENTOS COMPILADA ---
-[CRÍTICO] Módulo: Suporte à Vida | Motivo: Risco de asfixia ou blecaute iminente.
-
---- NOVA ANÁLISE DE EVENTOS COMPILADA ---
-Status: Todos os módulos operando em conformidade nominal.
-
---- NOVA ANÁLISE DE EVENTOS COMPILADA ---
-Status: Todos os módulos operando em conformidade nominal.
-
+01:40 - Verificacao automatica concluida
+03:20 - Pico de consumo energetico detectado
+05:10 - Reinicializacao do sensor de radiacao
+07:30 - Modo economico ativado
+11:45 - Alerta: aumento gradual de radiacao
+15:20 - Falha temporaria na comunicacao
+18:05 - Comunicacao restabelecida
+19:50 - Alerta critico de perda de sinal
+20:00 - Comunicacao principal indisponivel
+20:05 - Radiacao acima do limite operacional
+20:10 - Consumo energetico excede geracao disponivel
+21:10 - Sistema de comunicacao reiniciado
+23:00 - Inconsistencia: modulos ativos com geracao e consumo zerados
